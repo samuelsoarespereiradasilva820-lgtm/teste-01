@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconstrução de Memória</title>
+    <style>
+        body {
+            background-color: #050608;
+            color: #66fcf1;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- Camada de Fundo Dinâmica --- */
+        #fundo-jogo {
+            position: absolute;
+            top: -10px; 
+            left: -10px;
+            width: calc(100% + 20px);
+            height: calc(100% + 20px);
+            background-image: url('trem.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.4; 
+            z-index: -2;
+            transition: background-image 0.8s ease-in-out;
+        }
+
+        /* --- Animação de Trepidação --- */
+        @keyframes trepidacao {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            10% { transform: translate(-1px, -1px) rotate(-0.1deg); }
+            20% { transform: translate(-2px, 0px) rotate(0.1deg); }
+            30% { transform: translate(1px, 1px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(0.1deg); }
+            50% { transform: translate(-1px, 1px) rotate(-0.1deg); }
+            60% { transform: translate(-2px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-0.1deg); }
+            80% { transform: translate(-1px, -1px) rotate(0.1deg); }
+            90% { transform: translate(1px, 1px) rotate(0deg); }
+            100% { transform: translate(1px, -1px) rotate(0deg); }
+        }
+
+        .tremendo {
+            animation: trepidacao 0.3s infinite;
+        }
+
+        body::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(2px);
+            z-index: -1;
+        }
+
+        /* --- Interface de Diálogo Estilo Terminal --- */
+        #jogo {
+            position: absolute;
+            top: 40px; 
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .caixa-dialogo {
+            background-color: rgba(11, 12, 16, 0.85);
+            border: 2px solid #45f3ff;
+            border-radius: 8px;
+            width: 100%;
+            box-shadow: 0 0 20px rgba(69, 243, 255, 0.4);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .cabecalho-caixa {
+            background-color: rgba(69, 243, 255, 0.15);
+            border-bottom: 2px solid #45f3ff;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #45f3ff;
+        }
+
+        #tela-narrativa {
+            padding: 20px;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            white-space: pre-line;
+            min-height: 100px;
+            text-shadow: 0 0 5px rgba(102, 252, 241, 0.5);
+        }
+
+        .rodape-caixa {
+            border-top: 1px dashed rgba(69, 243, 255, 0.3);
+            padding: 8px 20px;
+            font-size: 0.8rem;
+            color: #45f3ff;
+            opacity: 0.7;
+        }
+
+        /* --- Área de Botões --- */
+        #botoes {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        button {
+            background-color: #1f2833;
+            color: #66fcf1;
+            border: 2px solid #45f3ff;
+            padding: 12px 25px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.3s all;
+            box-shadow: 0 0 5px rgba(69, 243, 255, 0.2);
+        }
+
+        button:hover {
+            background-color: #45f3ff;
+            color: #0b0c10;
+            box-shadow: 0 0 20px #45f3ff;
+        }
+
+        /* --- Estilo do Tabuleiro do Quebra-Cabeça --- */
+        #puzzle-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        #tabuleiro {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows: repeat(3, 120px);
+            gap: 2px;
+            border: 4px solid #45f3ff;
+            background-color: #1f2833;
+            box-shadow: 0 0 30px rgba(69, 243, 255, 0.5);
+        }
+
+        .peca {
+            width: 120px;
+            height: 120px;
+            background-image: url('orbe.jpg'); 
+            background-size: 360px 360px;
+            cursor: pointer;
+            border: 1px solid rgba(69, 243, 255, 0.2);
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 5px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 3px #000;
+        }
+
+        .vazio {
+            background-image: none !important;
+            background-color: #0b0c10;
+            cursor: default;
+        }
+
+        .ajuda-teclado {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #45f3ff;
+            opacity: 0.8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="fundo-jogo"></div> 
+
+    <div id="jogo">
+        <div class="caixa-dialogo">
+            <div class="cabecalho-caixa">SISTEMA DE SINCRONIZAÇÃO DE MEMÓRIA...</div>
+            <div id="tela-narrativa"></div>
+            <div class="rodape-caixa">CONEXÃO ESTÁVEL - NARRATIVA EM CURSO</div>
+        </div>
+        <div id="botoes"></div>
+    </div>
+
+    <div id="puzzle-container">
+        <h2>--- RECONSTRUÇÃO DE MEMÓRIA ---</h2>
+        <div id="tabuleiro"></div>
+        <div class="ajuda-teclado">Dica: Digite o número ou use <br>Enter/Espaço e 1/2 no teclado!</div>
+    </div>
+
+    <script>
+        const telaTextos = document.getElementById('tela-narrativa');
+        const containerBotoes = document.getElementById('botoes');
+        const containerPuzzle = document.getElementById('puzzle-container');
+        const tabuleiroHtml = document.getElementById('tabuleiro');
+        const fundoJogo = document.getElementById('fundo-jogo');
+
+        // --- Configuração do Áudio do Trem ---
+        const somTrem = new Audio('trem.mp3');
+        somTrem.loop = true; // Faz o áudio tocar continuamente em repetição
+
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        let acaoAtualBotao = null; 
+        let escolhasDisponiveis = [];
+        let jogandoPuzzle = false;
+
+        async function narrativa(texto, velocidad = 25) {
+            telaTextos.innerHTML = "";
+            for (let i = 0; i < texto.length; i++) {
+                telaTextos.innerHTML += texto[i];
+                await sleep(velocidad);
+            }
+        }
+
+        function criarBotao(texto, acao, atalhoTeclado = null) {
+            const btn = document.createElement('button');
+            btn.innerText = texto;
+            btn.onclick = acao;
+            containerBotoes.appendChild(btn);
+            if (!atalhoTeclado) acaoAtualBotao = acao;
+            else escolhasDisponiveis.push({ tecla: atalhoTeclado, acao: acao });
+        }
+
+        function limparEstadoBotoes() {
+            containerBotoes.innerHTML = "";
+            acaoAtualBotao = null;
+            escolhasDisponiveis = [];
+        }
+
+        let tabuleiro = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+        const objetivo = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+        const posicoesBackground = [
+            "0px 0px",     "-120px 0px",     "-240px 0px",
+            "0px -120px",  "-120px -120px",  "-240px -120px",
+            "0px -240px",  "-120px -240px",  "-240px -240px"
+        ];
+
+        function atualizarTabuleiroJanela() {
+            tabuleiroHtml.innerHTML = "";
+            tabuleiro.forEach((pecaID, index) => {
+                const divPeca = document.createElement('div');
+                divPeca.classList.add('peca');
+                if (pecaID === 8) divPeca.classList.add('vazio');
+                else { divPeca.style.backgroundPosition = posicoesBackground[pecaID]; divPeca.innerText = pecaID; }
+                divPeca.onclick = () => moverPecaPorIndex(index);
+                tabuleiroHtml.appendChild(divPeca);
+            });
+            if (JSON.stringify(tabuleiro) === JSON.stringify(objetivo)) { jogandoPuzzle = false; setTimeout(fimDoPuzzle, 500); }
+        }
+
+        function embaralhar() {
+            for (let i = 0; i < 20; i++) {
+                let vazio = tabuleiro.indexOf(8);
+                let mov = [];
+                if (vazio >= 3) mov.push(vazio - 3); if (vazio <= 5) mov.push(vazio + 3); if (vazio % 3 > 0) mov.push(vazio - 1); if (vazio % 3 < 2) mov.push(vazio + 1);
+                let alvo = mov[Math.floor(Math.random() * mov.length)];
+                let temp = tabuleiro[vazio]; tabuleiro[vazio] = tabuleiro[alvo]; tabuleiro[alvo] = temp;
+            }
+        }
+
+        function moverPecaPorIndex(indexAtual) {
+            let indexVazio = tabuleiro.indexOf(8);
+            if (Math.abs(indexAtual - indexVazio) === 3 || (Math.abs(indexAtual - indexVazio) === 1 && Math.floor(indexAtual / 3) === Math.floor(indexVazio / 3))) {
+                let temp = tabuleiro[indexVazio]; tabuleiro[indexVazio] = tabuleiro[indexAtual]; tabuleiro[indexAtual] = temp;
+                atualizarTabuleiroJanela();
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (jogandoPuzzle && e.key >= '0' && e.key <= '7') {
+                moverPecaPorIndex(tabuleiro.indexOf(parseInt(e.key, 10)));
+                return;
+            }
+            if (escolhasDisponiveis.length > 0) { 
+                const esc = escolhasDisponiveis.find(item => item.tecla === e.key); 
+                if (esc) esc.acao(); 
+                return; 
+            }
+            if (acaoAtualBotao && (e.key === 'Enter' || e.key === ' ')) { 
+                e.preventDefault(); 
+                acaoAtualBotao(); 
+            }
+        });
+
+        // --- Tela de Entrada para liberar o áudio no Navegador ---
+        function telaInicial() {
+            fundoJogo.style.backgroundImage = "url('trem.jpg')";
+            telaTextos.innerHTML = "SISTEMA PRONTO.<br><br>Clique no botão abaixo para iniciar a experiência.";
+            criarBotao("INICIAR JOGO", () => {
+                somTrem.play(); // Liga o som do trem
+                introducao();
+            });
+        }
+
+        // --- SEQUÊNCIA DA HISTÓRIA ---
+        async function introducao() { 
+            jogandoPuzzle = false; 
+            containerPuzzle.style.display = 'none'; 
+            fundoJogo.classList.add('tremendo'); 
+            limparEstadoBotoes(); 
+            await narrativa("[PROTOCOLO INICIAL]: ACORDAR. PREPARAR.\nMais um dia como sempre...\nNão vejo brilho nesse mundo; pessoas passando por cima umas das outras.\nTodos os dias vivo a mesma rotina: acordo, me preparo, pego o trem e vou pro trabalho...\nNão estou aguentando mais....."); 
+            criarBotao("Continuar [Enter]", situacaoEstranha); 
+        }
+        
+        async function situacaoEstranha() { 
+            limparEstadoBotoes(); 
+            
+            // CORTE BRUTAL: Para o tremor e silencia o som do trem imediatamente!
+            fundoJogo.classList.remove('tremendo'); 
+            somTrem.pause(); 
+            
+            fundoJogo.style.backgroundImage = "url('mundo_digital.jpg')"; 
+            await narrativa("De repente, o som metálico dos trilhos do trem silencia abruptamente.\nAs luzes do vagão piscam e se apagam, mergulhando tudo no breu.\nUm calafrio percorre sua espinha quando você percebe que não ouve mais a respiração dos outros passageiros.\nO mundo parece ter se transformado... Você não está mais no trem."); 
+            criarBotao("Olhar ao redor [Enter]", primeiraEscolha); 
+        }
+        
+        async function primeiraEscolha() { 
+            limparEstadoBotoes(); 
+            await narrativa("Olho para os lados e vejo um pequeno orbe brilhante.\nEle parece me chamar. Me aproximo dele.\n\nO que devo fazer?"); 
+            criarBotao("1 - Observar", async () => { 
+                limparEstadoBotoes(); 
+                await narrativa("Uma voz te chama, suave, desesperada, ansiosa..."); 
+            }, "1"); 
+            criarBotao("2 - Pegar", iniciarPuzzle, "2"); 
+        }
+        
+        function iniciarPuzzle() { 
+            document.getElementById('jogo').style.display = 'none'; 
+            containerPuzzle.style.display = 'flex'; 
+            jogandoPuzzle = true; 
+            embaralhar(); 
+            atualizarTabuleiroJanela(); 
+        }
+        
+        async function fimDoPuzzle() { 
+            containerPuzzle.style.display = 'none'; 
+            document.getElementById('jogo').style.display = 'block'; 
+            limparEstadoBotoes(); 
+            await narrativa("Sincronização Completa!\n\nO orbe explode em luz e você vê uma figura caída ao chão.\nÉ uma mulher, vestindo um traje que brilha em tons de azul neon.\nEla parece estar em um sono profundo, cercada por hologramas flutuantes."); 
+        }
+        
+        // Começa pela tela inicial para validação do som
+        telaInicial();
+    </script>
+</body>
+</html>
